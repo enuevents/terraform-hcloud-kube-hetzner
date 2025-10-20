@@ -10,23 +10,25 @@ package_upgrade: true
 packages: 
   - python3-systemd
   - fail2ban
-
-%{ if wireguard_enabled ~}
   - ca-certificates
   - curl
-%{ endif ~}
+
+package_reboot_if_required: false
+package_update: true
+package_upgrade: true
+packages:
+  - python3-systemd
+  - fail2ban
+  - ca-certificates
+  - curl
 
 users:
   - name: nat-router
     shell: /bin/bash
-%{ if enable_sudo ~}
     groups: sudo
     sudo: ALL=(ALL) NOPASSWD:ALL
-%{ endif ~}
     ssh_authorized_keys:
-%{ for key in sshAuthorizedKeys ~}
-      - ${key}
-%{ endfor ~}
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOfxH2+nWdaOCBVvO3EmhRyndUHKqkrJprJjOFkI0e6j
 
 write_files:
   # NAT configuration
@@ -94,19 +96,7 @@ write_files:
             - /etc/wireguard:/etc/wireguard:rw
             - /lib/modules:/lib/modules:ro
 
-# Apply DNS config
-%{ if has_dns_servers ~}
-manage_resolv_conf: true
-resolv_conf:
-  nameservers:
-%{ for dns_server in dns_servers ~}
-    - ${dns_server}
-%{ endfor ~}
-%{ endif ~}
-
-
 runcmd:
-%{ if wireguard_enabled ~}
   # Install Docker
   - install -m 0755 -d /etc/apt/keyrings
   - curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
@@ -117,9 +107,11 @@ runcmd:
 
   # Start wg-easy
   - docker compose -f /opt/wg-easy/compose.yaml up -d
-%{ endif ~}
-  
+
+  # Enable relevant services
   - systemctl enable fail2ban
   - systemctl start fail2ban
   - systemctl restart sshd
   - systemctl restart networking
+
+  - reboot # Artificial reboot

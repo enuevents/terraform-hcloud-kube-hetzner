@@ -31,6 +31,8 @@ data "cloudinit_config" "nat_router_config" {
         private_network_ipv4_range = data.hcloud_network.k3s.ip_range
         ssh_port                   = var.ssh_port
         ssh_max_auth_tries         = var.ssh_max_auth_tries
+
+        wireguard_enabled          = var.nat_router.wireguard.enable
       }
     )
   }
