@@ -32,42 +32,7 @@ data "cloudinit_config" "nat_router_config" {
         ssh_port                   = var.ssh_port
         ssh_max_auth_tries         = var.ssh_max_auth_tries
 
-        wireguard_enabled = var.nat_router.wireguard.enable
-
-        wg_subnet_ranges        = var.nat_router.wireguard.subnet_ranges
-        wg_endpoint_address     = var.nat_router.wireguard.endpoint_address
-        wg_dns                  = var.nat_router.wireguard.dns
-        wg_mtu                  = var.nat_router.wireguard.mtu
-        wg_persistent_keepalive = var.nat_router.wireguard.persistent_keepalive
-        wg_interface_addresses  = var.nat_router.wireguard.interface_addresses
-        wg_listen_port          = var.nat_router.wireguard.listen_port
-        wg_post_up_script       = var.nat_router.wireguard.post_up_script
-        wg_post_down_script     = var.nat_router.wireguard.post_down_script
-
-        wgui_username = var.nat_router.wireguard.ui.username
-        wgui_password = var.nat_router.wireguard.ui.password
-
-        wgui_session_secret       = var.nat_router.wireguard.ui.session.secret
-        wgui_session_max_duration = var.nat_router.wireguard.ui.session.max_duration
-
-        wgui_bind_address = var.nat_router.wireguard.ui.bind_address
-        wgui_log_level    = var.nat_router.wireguard.ui.log_level
-
-        wgui_email_from_address = var.nat_router.wireguard.ui.email.from_address
-        wgui_email_from_name    = var.nat_router.wireguard.ui.email.from_name
-        wgui_email_sendgrid_api_key   = var.nat_router.wireguard.ui.email.sendgrid_api_key
-        wgui_email_smtp_hostname      = var.nat_router.wireguard.ui.email.smtp.hostname
-        wgui_email_smtp_port          = var.nat_router.wireguard.ui.email.smtp.port
-        wgui_email_smtp_username      = var.nat_router.wireguard.ui.email.smtp.username
-        wgui_email_smtp_password      = var.nat_router.wireguard.ui.email.smtp.password
-        wgui_email_smtp_auth_type     = var.nat_router.wireguard.ui.email.smtp.auth_type
-        wgui_email_smtp_encryption    = var.nat_router.wireguard.ui.email.smtp.encryption
-        wgui_email_smtp_helo          = var.nat_router.wireguard.ui.email.smtp.helo
-
-        wgui_default_client_allowed_ips           = var.nat_router.wireguard.ui.client_default.allowed_ips
-        wgui_default_client_extra_allowed_ips     = var.nat_router.wireguard.ui.client_default.extra_allowed_ips
-        wgui_default_client_use_server_dns        = var.nat_router.wireguard.ui.client_default.use_server_dns
-        wgui_default_client_enable_after_creation = var.nat_router.wireguard.ui.client_default.enable_after_creation
+        wireguard_enabled          = var.nat_router.wireguard.enable
       }
     )
   }

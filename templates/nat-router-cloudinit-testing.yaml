@@ -7,12 +7,20 @@ package_update: true
 package_upgrade: true
 
 # python3-systemd is required on debian 12 for fail2ban to work
+packages: 
+  - python3-systemd
+  - fail2ban
+  - ca-certificates
+  - curl
+
+package_reboot_if_required: false
+package_update: true
+package_upgrade: true
 packages:
   - python3-systemd
   - fail2ban
   - ca-certificates
   - curl
-  - wireguard
 
 users:
   - name: nat-router
@@ -29,24 +37,24 @@ write_files:
       auto eth0
       iface eth0 inet dhcp
           post-up echo 1 > /proc/sys/net/ipv4/ip_forward
-          post-up iptables -t nat -A POSTROUTING -s '10.0.0.0/16' -o eth0 -j MASQUERADE
+          post-up iptables -t nat -A POSTROUTING -s '${ private_network_ipv4_range }' -o eth0 -j MASQUERADE
     append: true
 
   # SSH hardening
   - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
     content: |
-      Port 2222
+      Port ${ ssh_port }
       PermitRootLogin no
       PasswordAuthentication no
       KbdInteractiveAuthentication no
       ChallengeResponseAuthentication no
-      MaxAuthTries 5
+      MaxAuthTries ${ ssh_max_auth_tries }
       AllowAgentForwarding yes
       AllowTcpForwarding yes
       X11Forwarding no
       AuthorizedKeysFile .ssh/authorized_keys
       AllowUsers nat-router
-
+    
   # fail2ban backend fallback for debian 12
   - path: /etc/fail2ban/jail.local
     content: |
@@ -65,61 +73,28 @@ write_files:
       backend = %(sshd_backend)s
 
   # Wireguard UI Config
-  - path: /opt/wireguard-ui/compose.yaml
+  - path: /opt/wg-easy/compose.yaml
     content: |
       services:
-        wireguard-ui:
-          image: ngoduykhanh/wireguard-ui:latest
-          container_name: wireguard-ui
-          restart: always
+        wg-easy:
+          image: ghcr.io/wg-easy/wg-easy:15
+          container_name: wg-easy
+          restart: unless-stopped
+          ports:
+            - 51820:51820/udp
+            - 51821:51821/tcp
           cap_add:
             - NET_ADMIN
-          network_mode: host
-          expose:
-            - 5000
-          environment:
-            WGUI_PASSWORD: "ap0s97hdf0s87d"
-            SESSION_SECRET: "ap9sd7fh0a98s7d"
-
-            SUBNET_RANGES: "10.8.0.0/24"
-            WGUI_DNS: "1.1.1.1,2606:4700:4700::1111,8.8.8.8,2001:4860:4860::8888"
-            WGUI_MTU: "1450"
-            WGUI_PERSISTENT_KEEPALIVE: "25"
-            WGUI_SERVER_INTERFACE_ADDRESSES: "wg0:10.8.0.1/24"
-            WGUI_SERVER_LISTEN_PORT: "51820"
-            WGUI_SERVER_POST_UP_SCRIPT: "iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE;"
-            WGUI_SERVER_POST_DOWN_SCRIPT: "iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE;"
-          logging:
-            driver: json-file
-            options:
-              max-size: 50m
+            - SYS_MODULE
+          sysctls:
+            - net.ipv4.ip_forward=1
+            - net.ipv4.conf.all.src_valid_mark=1
+            - net.ipv6.conf.all.disable_ipv6=0
+            - net.ipv6.conf.all.forwarding=1
+            - net.ipv6.conf.default.forwarding=1
           volumes:
-            - ./db:/app/db:rw
             - /etc/wireguard:/etc/wireguard:rw
-
-  - path: /etc/systemd/system/restart-wireguard.service
-    content: |
-      [Unit]
-      Description=Restart WireGuard
-      After=network.target
-
-      [Service]
-      Type=oneshot
-      ExecStart=/usr/bin/systemctl restart wg-quick@wg0.service
-
-      [Install]
-      RequiredBy=wireguard-ui.path
-
-  - path: /etc/systemd/system/restart-wireguard.path
-    content: |
-      [Unit]
-      Description=Watch /etc/wireguard/wg0.conf for changes
-
-      [Path]
-      PathModified=/etc/wireguard/wg0.conf
-
-      [Install]
-      WantedBy=multi-user.target
+            - /lib/modules:/lib/modules:ro
 
 runcmd:
   # Install Docker
@@ -130,15 +105,10 @@ runcmd:
   - apt update
   - apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-  # Start wireguard UI
-  - docker compose -f /opt/wireguard-ui/compose.yaml up -d
+  # Start wg-easy
+  - docker compose -f /opt/wg-easy/compose.yaml up -d
 
-  # Start systemd services for wireguard restart
-  - systemctl enable restart-wireguard.path
-  - systemctl enable restart-wireguard.service
-  - systemctl start restart-wireguard.path
-  - systemctl start restart-wireguard.service
-
+  # Enable relevant services
   - systemctl enable fail2ban
   - systemctl start fail2ban
   - systemctl restart sshd
