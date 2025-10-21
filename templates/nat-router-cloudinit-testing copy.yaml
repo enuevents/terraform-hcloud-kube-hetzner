@@ -7,7 +7,7 @@ package_update: true
 package_upgrade: true
 
 # python3-systemd is required on debian 12 for fail2ban to work
-packages:
+packages: 
   - python3-systemd
   - fail2ban
   - ca-certificates
@@ -20,7 +20,7 @@ users:
     groups: sudo
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
-      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOfxH2+nWdaOCBVvO3EmhRyndUHKqkrJprJjOFkI0e6j
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGOb+Vd176UHAKQQnFwJsGV1XzzqEyhZEmPAl5SOKtcQ
 
 write_files:
   # NAT configuration
@@ -46,7 +46,7 @@ write_files:
       X11Forwarding no
       AuthorizedKeysFile .ssh/authorized_keys
       AllowUsers nat-router
-
+    
   # fail2ban backend fallback for debian 12
   - path: /etc/fail2ban/jail.local
     content: |
@@ -71,24 +71,58 @@ write_files:
         wireguard-ui:
           image: ngoduykhanh/wireguard-ui:latest
           container_name: wireguard-ui
-          restart: always
           cap_add:
             - NET_ADMIN
           network_mode: host
           expose:
             - 5000
           environment:
-            WGUI_PASSWORD: "ap0s97hdf0s87d"
-            SESSION_SECRET: "ap9sd7fh0a98s7d"
+            # Wireguard configuration
+            # - SUBNET_RANGES=${ wg_subnet_ranges }
+            # - WGUI_ENDPOINT_ADDRESS=${ wg_endpoint_address }
+            # - WGUI_DNS=${ wg_dns }
+            # - WGUI_MTU=${ wg_mtu }
+            # - WGUI_PERSISTENT_KEEPALIVE=${ wg_persistent_keepalive }
+            # - WGUI_SERVER_INTERFACE_ADDRESSES=${ wg_interface_addresses }
+            # - WGUI_SERVER_LISTEN_PORT=${ wg_listen_port }
+            # - WGUI_SERVER_POST_UP_SCRIPT=${ wg_post_up_script }
+            # - WGUI_SERVER_POST_DOWN_SCRIPT=${ wg_post_down_script }
 
-            SUBNET_RANGES: "10.8.0.0/24"
-            WGUI_DNS: "1.1.1.1,2606:4700:4700::1111,8.8.8.8,2001:4860:4860::8888"
-            WGUI_MTU: "1450"
-            WGUI_PERSISTENT_KEEPALIVE: "25"
-            WGUI_SERVER_INTERFACE_ADDRESSES: "wg0:10.8.0.1/24"
-            WGUI_SERVER_LISTEN_PORT: "51820"
-            WGUI_SERVER_POST_UP_SCRIPT: "iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE;"
-            WGUI_SERVER_POST_DOWN_SCRIPT: "iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE;"
+            # Admin credentials
+            # - WGUI_USERNAME=${ wgui_username }
+            - WGUI_PASSWORD=ap0s97hdf0s87d
+
+            # Sessions
+            - SESSION_SECRET=ap9sd7fh0a98s7d
+            # - SESSION_MAX_DURATION=${ wgui_session_max_duration }
+
+            # Binding
+            # - BIND_ADDRESS=${ wgui_bind_address }
+            # - WGUI_LOG_LEVEL=${ wgui_log_level }
+
+            # Client configuration defaults
+            # - WGUI_DEFAULT_CLIENT_ALLOWED_IPS=${ wgui_default_client_allowed_ips }
+            # - WGUI_DEFAULT_CLIENT_EXTRA_ALLOWED_IPS=${ wgui_default_client_extra_allowed_ips }
+            # - WGUI_DEFAULT_CLIENT_USE_SERVER_DNS=${ wgui_default_client_use_server_dns }
+            # - WGUI_DEFAULT_CLIENT_ENABLE_AFTER_CREATION=${ wgui_default_client_enable_after_creation }
+
+            # Dont manage wireguard from UI as it is running on the host and managed by systemd
+            - WGUI_MANAGE_START=false
+            - WGUI_MANAGE_RESTART=false
+
+            # Email configuration
+            # - EMAIL_FROM_ADDRESS=${ wgui_email_from_address }
+            # - EMAIL_FROM_NAME=${ wgui_email_from_name }
+
+            # - SENDGRID_API_KEY=${ wgui_email_sendgrid_api_key }
+
+            # - SMTP_HOSTNAME=${ wgui_email_smtp_hostname }
+            # - SMTP_PORT=${ wgui_email_smtp_port }
+            # - SMTP_USERNAME=${ wgui_email_smtp_username }
+            # - SMTP_PASSWORD=${ wgui_email_smtp_password }
+            # - SMTP_AUTH_TYPE=${ wgui_email_smtp_auth_type }
+            # - SMTP_ENCRYPTION=${ wgui_email_smtp_encryption }
+            # - SMTP_HELO=${ wgui_email_smtp_helo }
           logging:
             driver: json-file
             options:
@@ -97,7 +131,7 @@ write_files:
             - ./db:/app/db:rw
             - /etc/wireguard:/etc/wireguard:rw
 
-  - path: /etc/systemd/system/restart-wireguard.service
+  - path: /etc/systemd/system/wireguard-ui.service
     content: |
       [Unit]
       Description=Restart WireGuard
@@ -110,7 +144,7 @@ write_files:
       [Install]
       RequiredBy=wireguard-ui.path
 
-  - path: /etc/systemd/system/restart-wireguard.path
+  - path: /etc/systemd/system/wireguard-ui.path
     content: |
       [Unit]
       Description=Watch /etc/wireguard/wg0.conf for changes
@@ -121,6 +155,7 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+
 runcmd:
   # Install Docker
   - install -m 0755 -d /etc/apt/keyrings
@@ -130,15 +165,13 @@ runcmd:
   - apt update
   - apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+  # Start systemd services for wireguard restart
+  - systemctl enable wireguard-ui.{path,service}
+  - systemctl start wireguard-ui.{path,service}
+
   # Start wireguard UI
   - docker compose -f /opt/wireguard-ui/compose.yaml up -d
-
-  # Start systemd services for wireguard restart
-  - systemctl enable restart-wireguard.path
-  - systemctl enable restart-wireguard.service
-  - systemctl start restart-wireguard.path
-  - systemctl start restart-wireguard.service
-
+  
   - systemctl enable fail2ban
   - systemctl start fail2ban
   - systemctl restart sshd

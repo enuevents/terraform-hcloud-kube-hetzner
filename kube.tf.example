@@ -346,8 +346,17 @@ module "kube-hetzner" {
   #   server_type = "cax21"
   #   location    = "fsn1"
   #   enable_sudo = false # optional, default to false. Set to true to add nat-router user to the sudo'ers. Note that ssh as root is disabled.
-  #   labels      = {} # optionally add labels.
-  #   wireguard   = false
+  #   labels      = {}    # optionally add labels.
+  #   wireguard = {       # Enable automatic setup of wireguard on the NAT-Server
+  #     enable = true
+  #     ui = {
+  #       username = "admin"
+  #       password = "supersecretpassword"
+  #       session = {
+  #         secret = "supersecretsecret"
+  #       }
+  #     }
+  #   }
   # }
 
 

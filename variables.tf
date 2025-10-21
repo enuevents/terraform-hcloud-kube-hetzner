@@ -120,41 +120,6 @@ variable "cluster_dns_ipv4" {
   default     = null
 }
 
-# wgui_bind_address = var.nat_router.wireguard.ui.bind_address
-# wgui_session_secret = var.nat_router.wireguard.ui.session.secret
-# wgui_session_max_duration = var.nat_router.wireguard.ui.max_duration
-# wgui_subnet_ranges = var.nat_router.wireguard.ui.subnet_ranges
-
-# wgui_username = var.nat_router.wireguard.ui.username
-# wgui_password = var.nat_router.wireguard.ui.password
-
-# wgui_endpoint_address = var.nat_router.wireguard.ui.endpoint_address
-# wgui_dns = var.nat_router.wireguard.ui.dns
-# wgui_mtu = var.nat_router.wireguard.ui.mtu
-# wgui_persistent_keepalive = var.nat_router.wireguard.ui.persistent_keepalive
-# wgui_log_level = var.nat_router.wireguard.ui.log_level
-
-# wgui_sendgrid_api_key = var.nat_router.wireguard.ui.email.sendgrid_api_key
-# wgui_email_from_address = var.nat_router.wireguard.ui.email.from_address
-# wgui_email_from_name = var.nat_router.wireguard.ui.email.from_name
-# wgui_smtp_hostname = var.nat_router.wireguard.ui.email.smtp.hostname
-# wgui_smtp_port = var.nat_router.wireguard.ui.email.smtp.port
-# wgui_smtp_username = var.nat_router.wireguard.ui.email.smtp.username
-# wgui_smtp_password = var.nat_router.wireguard.ui.email.smtp.password
-# wgui_smtp_auth_type = var.nat_router.wireguard.ui.email.smtp.auth_type
-# wgui_smtp_encryption = var.nat_router.wireguard.ui.email.smtp.encryption
-# wgui_smtp_helo = var.nat_router.wireguard.ui.email.smtp.helo
-
-# wgui_server_interface_addresses = var.nat_router.wireguard.ui.server.interface_addresses
-# wgui_server_listen_port = var.nat_router.wireguard.ui.server.listen_port
-# wgui_server_post_up_script = var.nat_router.wireguard.ui.server.post_up_script
-# wgui_post_down_script = var.nat_router.wireguard.ui.server.post_down_script
-
-# wgui_default_client_allowed_ips = var.nat_router.wireguard.ui.default_client.allowed_ips
-# wgui_default_client_extra_allowed_ips = var.nat_router.wireguard.ui.default_client.extra_allowed_ips
-# wgui_default_client_use_server_dns = var.nat_router.wireguard.ui.default_client.use_server_dns
-# wgui_default_client_enable_after_creation = var.nat_router.wireguard.ui.default_client.enable_after_creation
-
 variable "nat_router" {
   description = "Do you want to pipe all egress through a single nat router which is to be constructed?"
   nullable    = true
@@ -166,7 +131,50 @@ variable "nat_router" {
     enable_sudo = optional(bool, false)
     wireguard = optional(object({
       enable = optional(bool, false)
-    }), {})
+
+      subnet_ranges        = optional(string, "10.8.0.0/24")                                               # Wireguard CIDR
+      endpoint_address     = optional(string, "")                                                          # Wireguard connection endpoint (automatically resolved to public IP)
+      dns                  = optional(string, "1.1.1.1,2606:4700:4700::1111,8.8.8.8,2001:4860:4860::8888") # DNS records (default Cloudflare & Google)
+      mtu                  = optional(string, "1450")
+      persistent_keepalive = optional(string, "25")
+      interface_addresses  = optional(string, "wg0:10.8.0.1/24") # Wireguard interface addresses
+      listen_port          = optional(string, "51820")
+      post_up_script       = optional(string, "iptables -A FORWARD -i %1 -j ACCEPT; iptables -A FORWARD -o wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth+ -j MASQUERADE;")
+      post_down_script     = optional(string, "iptables -D FORWARD -i %1 -j ACCEPT; iptables -D FORWARD -o wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth+ -j MASQUERADE;")
+
+      ui = object({
+        username = optional(string, "admin")
+        password = string
+        session = object({
+          secret       = string
+          max_duration = optional(string, "90")
+        })
+        bind_address = optional(string, "0.0.0.0:80")
+        log_level    = optional(string, "INFO")
+        email = optional(object({
+          from_address     = string
+          from_name        = optional(string, "WireGuard UI")
+          sendgrid_api_key = optional(string, "")
+          smtp = optional(object({
+            hostname   = optional(string, "127.0.0.1")
+            port       = optional(string, "25")
+            username   = string
+            password   = string
+            auth_type  = optional(string, "NONE")
+            encryption = optional(string, "STARTTLS")
+            helo       = optional(string, "localhost")
+          }), {})
+          client_default = optional(object({
+            allowed_ips           = optional(string, "0.0.0.0/0")
+            extra_allowed_ips     = optional(string, "")
+            use_server_dns        = optional(string, "true")
+            enable_after_creation = optional(string, "true")
+          }), {})
+        }), {})
+      })
+      }), {
+      enable = false
+    })
   })
   validation {
     condition     = (var.nat_router != null && var.use_control_plane_lb) || (var.nat_router == null)

@@ -14,6 +14,7 @@ packages:
 %{ if wireguard_enabled ~}
   - ca-certificates
   - curl
+  - wireguard
 %{ endif ~}
 
 users:
@@ -70,29 +71,105 @@ write_files:
       logpath = %(sshd_log)s
       backend = %(sshd_backend)s
 
+%{ if wireguard_enabled ~}
   # Wireguard UI Config
-  - path: /opt/wg-easy/compose.yaml
+  - path: /opt/wireguard-ui/compose.yaml
     content: |
       services:
-        wg-easy:
-          image: ghcr.io/wg-easy/wg-easy:15
-          container_name: wg-easy
-          restart: unless-stopped
-          ports:
-            - 51820:51820/udp
-            - 51821:51821/tcp
+        wireguard-ui:
+          image: ngoduykhanh/wireguard-ui:latest
+          container_name: wireguard-ui
+          restart: always
           cap_add:
             - NET_ADMIN
-            - SYS_MODULE
-          sysctls:
-            - net.ipv4.ip_forward=1
-            - net.ipv4.conf.all.src_valid_mark=1
-            - net.ipv6.conf.all.disable_ipv6=0
-            - net.ipv6.conf.all.forwarding=1
-            - net.ipv6.conf.default.forwarding=1
+          network_mode: host
+          expose:
+            - 5000
+          environment:
+            # Wireguard configuration
+            - SUBNET_RANGES=${ wg_subnet_ranges }
+%{ if wg_endpoint_address != "" ~}
+            - WGUI_ENDPOINT_ADDRESS=${ wg_endpoint_address }
+%{ endif ~}
+            - WGUI_DNS=${ wg_dns }
+            - WGUI_MTU=${ wg_mtu }
+            - WGUI_PERSISTENT_KEEPALIVE=${ wg_persistent_keepalive }
+            - WGUI_SERVER_INTERFACE_ADDRESSES=${ wg_interface_addresses }
+            - WGUI_SERVER_LISTEN_PORT=${ wg_listen_port }
+%{ if wg_post_up_script != "" ~}
+            - WGUI_SERVER_POST_UP_SCRIPT=${ wg_post_up_script }
+%{ endif ~}
+%{ if wg_post_down_script != "" ~}
+            - WGUI_SERVER_POST_DOWN_SCRIPT=${ wg_post_down_script }
+%{ endif ~}
+
+            # Admin credentials
+            - WGUI_USERNAME=${ wgui_username }
+            - WGUI_PASSWORD=${ wgui_password }
+
+            # Sessions
+            - SESSION_SECRET=${ wgui_session_secret }
+            - SESSION_MAX_DURATION=${ wgui_session_max_duration }
+
+            # Binding
+            - BIND_ADDRESS=${ wgui_bind_address }
+            - WGUI_LOG_LEVEL=${ wgui_log_level }
+
+            # Client configuration defaults
+            - WGUI_DEFAULT_CLIENT_ALLOWED_IPS=${ wgui_default_client_allowed_ips }
+            - WGUI_DEFAULT_CLIENT_EXTRA_ALLOWED_IPS=${ wgui_default_client_extra_allowed_ips }
+            - WGUI_DEFAULT_CLIENT_USE_SERVER_DNS=${ wgui_default_client_use_server_dns }
+            - WGUI_DEFAULT_CLIENT_ENABLE_AFTER_CREATION=${ wgui_default_client_enable_after_creation }
+
+            # Dont manage wireguard from UI as it is running on the host and managed by systemd
+            - WGUI_MANAGE_START=false
+            - WGUI_MANAGE_RESTART=false
+
+            # Email configuration
+            - EMAIL_FROM_ADDRESS=${ wgui_email_from_address }
+            - EMAIL_FROM_NAME=${ wgui_email_from_name }
+
+            - SENDGRID_API_KEY=${ wgui_email_sendgrid_api_key }
+
+            - SMTP_HOSTNAME=${ wgui_email_smtp_hostname }
+            - SMTP_PORT=${ wgui_email_smtp_port }
+            - SMTP_USERNAME=${ wgui_email_smtp_username }
+            - SMTP_PASSWORD=${ wgui_email_smtp_password }
+            - SMTP_AUTH_TYPE=${ wgui_email_smtp_auth_type }
+            - SMTP_ENCRYPTION=${ wgui_email_smtp_encryption }
+            - SMTP_HELO=${ wgui_email_smtp_helo }
+          logging:
+            driver: json-file
+            options:
+              max-size: 50m
           volumes:
+            - ./db:/app/db:rw
             - /etc/wireguard:/etc/wireguard:rw
-            - /lib/modules:/lib/modules:ro
+
+  - path: /etc/systemd/system/wireguard-ui.service
+    content: |
+      [Unit]
+      Description=Restart WireGuard
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/bin/systemctl restart wg-quick@wg0.service
+
+      [Install]
+      RequiredBy=wireguard-ui.path
+
+  - path: /etc/systemd/system/wireguard-ui.path
+    content: |
+      [Unit]
+      Description=Watch /etc/wireguard/wg0.conf for changes
+
+      [Path]
+      PathModified=/etc/wireguard/wg0.conf
+
+      [Install]
+      WantedBy=multi-user.target
+%{ endif ~}
 
 # Apply DNS config
 %{ if has_dns_servers ~}
@@ -115,8 +192,12 @@ runcmd:
   - apt update
   - apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-  # Start wg-easy
-  - docker compose -f /opt/wg-easy/compose.yaml up -d
+  # Start systemd services for wireguard restart
+  - systemctl enable wireguard-ui.{path,service}
+  - systemctl start wireguard-ui.{path,service}
+
+  # Start wireguard UI
+  - docker compose -f /opt/wireguard-ui/compose.yaml up -d
 %{ endif ~}
   
   - systemctl enable fail2ban
