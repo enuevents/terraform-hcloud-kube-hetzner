@@ -772,6 +772,7 @@ controller:
 traefik_values = var.traefik_values != "" ? var.traefik_values : <<EOT
 image:
   tag: ${var.traefik_image_tag}
+namespace: ${local.ingress_controller_namespace}
 deployment:
   replicas: ${local.ingress_replica_count}
 globalArguments: []
