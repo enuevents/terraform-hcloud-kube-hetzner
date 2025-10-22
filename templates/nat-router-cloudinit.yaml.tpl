@@ -53,11 +53,10 @@ write_files:
       GSSAPIAuthentication no                   # Unused auth method
       IgnoreRhosts yes                          # No hostbased auth
       UseDNS no                                 # Unused auth method
-      UsePAM no                                 # Unused auth method
       PubkeyAuthentication yes                  # Only PublicKey auth
 
       AllowAgentForwarding yes                  # Agent forwarding (can be disabled)
-      AllowTcpForwarding yes                    # SSH port forwarding
+      AllowTcpForwarding yes                    # SSH port forwarding (can be disabled)
       X11Forwarding no                          # Unused forwarding method
 
       AuthorizedKeysFile .ssh/authorized_keys   # AuthorizedKeysFile
