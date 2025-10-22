@@ -29,26 +29,35 @@ write_files:
   # SSH hardening
   - path: /etc/ssh/sshd_config.d/ssh-hardening.conf
     content: |
-      Protocol 2                                # Use protocol version 2
-      Port ${ ssh_port }                        # SSH port
-      MaxAuthTries ${ ssh_max_auth_tries }      # Maximum auth tries in one session (recommended 3)
-      LoginGraceTime 20                         # Time to login
+      # Protocol 2                                # Use protocol version 2
+      # Port ${ ssh_port }                        # SSH port
+      # MaxAuthTries ${ ssh_max_auth_tries }      # Maximum auth tries in one session (recommended 3)
+      # LoginGraceTime 20                         # Time to login
 
-      PermitRootLogin no                        # No root login
-      PasswordAuthentication no                 # No password auth
-      KbdInteractiveAuthentication no           # Unused auth method
-      ChallengeResponseAuthentication no        # Unused auth method
-      GSSAPIAuthentication no                   # Unused auth method
-      IgnoreRhosts yes                          # No hostbased auth
-      UseDNS no                                 # Unused auth method
-      PubkeyAuthentication yes                  # Only PublicKey auth
+      # PermitRootLogin no                        # No root login
+      # PasswordAuthentication no                 # No password auth
+      # KbdInteractiveAuthentication no           # Unused auth method
+      # ChallengeResponseAuthentication no        # Unused auth method
+      # GSSAPIAuthentication no                   # Unused auth method
+      # IgnoreRhosts yes                          # No hostbased auth
+      # UseDNS no                                 # Unused auth method
+      # PubkeyAuthentication yes                  # Only PublicKey auth
 
-      AllowAgentForwarding yes                  # Agent forwarding (can be disabled)
-      AllowTcpForwarding yes                    # SSH port forwarding (can be disabled)
-      X11Forwarding no                          # Unused forwarding method
+      # AllowAgentForwarding yes                  # Agent forwarding (can be disabled)
+      # AllowTcpForwarding yes                    # SSH port forwarding (can be disabled)
+      # X11Forwarding no                          # Unused forwarding method
 
-      AuthorizedKeysFile .ssh/authorized_keys   # AuthorizedKeysFile
-      AllowUsers nat-router                     # Allow only user nat-router
+      # AuthorizedKeysFile .ssh/authorized_keys   # AuthorizedKeysFile
+      # AllowUsers nat-router                     # Allow only user nat-router
+
+      Port ${ ssh_port }
+      PasswordAuthentication no
+      X11Forwarding no
+      MaxAuthTries ${ ssh_max_auth_tries }
+      AllowTcpForwarding yes
+      AllowAgentForwarding yes
+      AuthorizedKeysFile .ssh/authorized_keys
+      # PermitRootLogin no
     
   # fail2ban backend fallback for debian 12
   - path: /etc/fail2ban/jail.local
@@ -87,14 +96,14 @@ write_files:
             - net.ipv6.conf.all.disable_ipv6=0
             - net.ipv6.conf.all.forwarding=1
             - net.ipv6.conf.default.forwarding=1
-          networks:
-            - wireguard
+          # networks:
+          #   - wireguard
           volumes:
             - /etc/wireguard:/etc/wireguard:rw
             - /lib/modules:/lib/modules:ro
-      networks:
-        wireguard:
-          driver: bridge
+      # networks:
+      #   wireguard:
+      #     driver: bridge
 
 users:
   - name: nat-router
