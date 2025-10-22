@@ -32,7 +32,7 @@ data "cloudinit_config" "nat_router_config" {
         ssh_port                   = var.ssh_port
         ssh_max_auth_tries         = var.ssh_max_auth_tries
 
-        wireguard_enabled          = var.nat_router.wireguard.enable
+        wireguard_enabled          = var.nat_router.enable_wireguard
       }
     )
   }
