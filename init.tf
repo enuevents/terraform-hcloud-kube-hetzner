@@ -490,7 +490,6 @@ resource "null_resource" "kustomization" {
       local.has_external_load_balancer ? [] : [
         <<-EOT
       timeout 360 bash <<EOF
-      echo "ingress_controller_namespace: ${local.ingress_controller_namespace} ingress_controller_service_name: ${lookup(local.ingress_controller_service_names, var.ingress_controller)} hostname or ip: ${var.lb_hostname != "" ? "hostname" : "ip"}"
       until [ -n "\$(kubectl get -n ${local.ingress_controller_namespace} service/${lookup(local.ingress_controller_service_names, var.ingress_controller)} --output=jsonpath='{.status.loadBalancer.ingress[0].${var.lb_hostname != "" ? "hostname" : "ip"}}' 2> /dev/null)" ]; do
           echo "Waiting for load-balancer to get an IP..."
           sleep 2
