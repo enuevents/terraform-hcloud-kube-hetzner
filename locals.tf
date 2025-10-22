@@ -461,6 +461,15 @@ locals {
         port        = ""
         source_ips  = ["0.0.0.0/0", "::/0"]
       }
+    ],
+    var.nat_router != null && !var.nat_router.enable_wireguard ? [] : [
+      {
+        description = "Allow Wireguard Connection to NAT Router"
+        direction   = "in"
+        protocol    = "udp"
+        port        = "51820"
+        source_ips  = ["0.0.0.0/0", "::/0"]
+      }
     ]
   )
 
