@@ -100,9 +100,15 @@ write_files:
             - net.ipv6.conf.all.disable_ipv6=0
             - net.ipv6.conf.all.forwarding=1
             - net.ipv6.conf.default.forwarding=1
+          networks:
+            - wireguard
           volumes:
             - /etc/wireguard:/etc/wireguard:rw
             - /lib/modules:/lib/modules:ro
+      networks:
+        wireguard:
+          driver: bridge
+
 
 # Apply DNS config
 %{ if has_dns_servers ~}
