@@ -126,10 +126,11 @@ variable "nat_router" {
   nullable    = true
   default     = null
   type = object({
-    server_type = string
-    location    = string
-    labels      = optional(map(string), {})
-    enable_sudo = optional(bool, false)
+    server_type      = string
+    location         = string
+    labels           = optional(map(string), {})
+    enable_sudo      = optional(bool, false)
+    enable_wireguard = optional(bool, false)
   })
   validation {
     condition     = (var.nat_router != null && var.use_control_plane_lb) || (var.nat_router == null)
