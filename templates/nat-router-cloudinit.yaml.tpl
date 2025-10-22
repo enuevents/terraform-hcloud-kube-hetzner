@@ -16,18 +16,6 @@ packages:
   - curl
 %{ endif ~}
 
-users:
-  - name: nat-router
-    shell: /bin/bash
-%{ if enable_sudo ~}
-    groups: sudo
-    sudo: ALL=(ALL) NOPASSWD:ALL
-%{ endif ~}
-    ssh_authorized_keys:
-%{ for key in sshAuthorizedKeys ~}
-      - ${key}
-%{ endfor ~}
-
 write_files:
   # NAT configuration
   - path: /etc/network/interfaces
@@ -108,6 +96,21 @@ write_files:
         wireguard:
           driver: bridge
 
+users:
+  - name: nat-router
+    shell: /bin/bash
+    groups: 
+%{ if enable_sudo ~}
+      - sudo
+%{ endif ~}
+%{ if enable_sudo ~}
+    sudo: 
+      - ALL=(ALL) NOPASSWD:ALL
+%{ endif ~}
+    ssh_authorized_keys:
+%{ for key in sshAuthorizedKeys ~}
+      - ${key}
+%{ endfor ~}
 
 # Apply DNS config
 %{ if has_dns_servers ~}
